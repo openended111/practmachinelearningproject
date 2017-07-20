@@ -1,0 +1,92 @@
+---
+title: "Practical Machine Learning Final Project"
+author: "Sang Cho"
+date: "July 19, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Summary
+
+The purpose of this project is to identify the labels in the test dataset by building a model based on the qualities of the activity the participant.
+
+# Data Prep
+
+Download and load the train and test datasets.  Also, within the training dataset, I've splitted the validation set in order to test the accuracy of the model.
+
+
+```{r}
+download.file('https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv',destfile = "training.csv")
+training <- read.csv("training.csv",na.strings=c("NA",""))
+
+download.file('https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv',destfile = "test.csv")
+test <- read.csv("test.csv",na.strings=c("NA",""))
+```
+
+# Data Cleaning
+
+Remove columns with (1. 90% or more NA values  2.  First 6 ID columns not used for the model)
+For remaining columns, impute the missing values with the average
+
+```{r}
+training <- training[,-(1:6)]
+training <- training[,colMeans(is.na(training)) < 0.1]
+
+
+imp <- function(x) {
+  for(i in 1:ncol(x))
+  {
+    x[is.na(x[,i]), i] <- mean(x[,i], na.rm = TRUE)
+  }
+}
+
+imp(training)
+```
+
+# Training / Validation Datasets
+
+Within the training dataset, I've splitted the validation set in order to test the accuracy of the model.
+
+```{r}
+library(caret)
+partition <- createDataPartition(training$classe,p=0.7,list=FALSE)
+train.raw <- training[partition,]
+test.raw <- training[-partition,]
+```
+
+# CART Model
+
+
+```{r}
+set.seed(111)
+
+Control <- trainControl(method='cv', number = 5)
+cartmod <- train(classe ~ ., data = train.raw,method="rpart",trControl=Control)
+cartpred <- predict(cartmod,test.raw)
+confusionMatrix(cartpred,test.raw$classe)
+```
+
+CART model was built with 5-fold CV to select the optimal tuning parameters.
+However, the accuracy rate  ~ 50% called for a different model.
+
+
+# Random Forest
+
+
+```{r}
+rfmod <- train(classe ~ ., data = train.raw,method="rf",trControl=Control)
+rfpred <- predict(rfmod,test.raw)
+confusionMatrix(rfpred,test.raw$classe)
+```
+
+Random Forest model was built with 5-fold CV to select the optimal tuning parameters.
+The accuracy rate was satisfactory and I have chosen the Random Forest model to proceed.
+On the side note, I've also built another model with gbm; however the accuracy rate was lower than the RF and the run time was extremely long so I have not included the run in the markdown.
+
+
+
+
+
